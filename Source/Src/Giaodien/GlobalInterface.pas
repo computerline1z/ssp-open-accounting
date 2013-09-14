@@ -1,0 +1,305 @@
+unit GlobalInterface;
+interface
+uses Windows, Messages, SysUtils, Classes, Graphics, Controls, dxLayoutControl,
+Registry, DBCtrls
+  , StdCtrls, dxExEdtr, dxEdLib, Dialogs, ExtCtrls, Buttons, dxEditor, dxCntner,
+    Db, Forms,
+  cxControls, dxDBELib, dxLayoutLookAndFeels, dxDBGrid, dxDBTL, dxDBInsp,
+    dxInspct;
+var
+  GlobalActiveStyle: Integer;
+    // gia tri nay xac dinh style nao dang hoat dong trong chuong trinh
+  ColorBB, ColorReadOnly: TColor;
+procedure ApplyUserInterface(AControl: TControl);
+function ReadRegistry: Boolean;
+procedure ChangeGrid(AGrid: TdxDBGrid);
+procedure ChangeInspector(AInspector: TdxDBInspector);
+procedure ChangeTree(ATree: TdxDBTreeList);
+implementation
+
+uses DMInterface, Functions, GlobalUnit;
+
+procedure ApplyUserInterface(AControl: TControl);
+var
+  i: Integer;
+begin
+  if CurLanguage > 0 then SetCaption(AControl);
+
+  if AControl.Height > UScreenHeight then AControl.Height := UScreenHeight;
+  if AControl.Width > UScreenWidth then AControl.Width := UScreenWidth;
+
+  with InterfaceDM do
+  begin
+    for i := 0 to AControl.ComponentCount - 1 do
+    begin
+
+      if (AControl.Components[i] is TdxCustomLayoutControl) then
+      begin
+
+        if (AControl.Components[i].Tag = 0) then
+        begin
+          case GlobalActiveStyle of
+            0: // style co' bong
+              TdxLayoutControl(AControl.Components[i]).LookAndFeel := lfActiveX;
+            1: // style kieu web
+              TdxLayoutControl(AControl.Components[i]).LookAndFeel := StyleWeb;
+            2: // style trong
+              TdxLayoutControl(AControl.Components[i]).LookAndFeel := StyleDetrong;
+            3: // style phang
+              TdxLayoutControl(AControl.Components[i]).LookAndFeel := StylePhang;
+            4: // style chuan
+              TdxLayoutControl(AControl.Components[i]).LookAndFeel := StyleStandard;
+            5: // style mac dinh
+              TdxLayoutControl(AControl.Components[i]).LookAndFeel := StyleMacDinh;
+          end;
+        end
+        else
+          if (AControl.Components[i].Tag = -2) then
+            case GlobalActiveStyle of
+              0: // style co' bong
+                TdxLayoutControl(AControl.Components[i]).LookAndFeel.GroupOptions.Color := lfActiveX.GroupOptions.Color;
+              1: // style kieu web
+                TdxLayoutControl(AControl.Components[i]).LookAndFeel.GroupOptions.Color := StyleWeb.GroupOptions.Color;
+              2: // style trong
+                TdxLayoutControl(AControl.Components[i]).LookAndFeel.GroupOptions.Color := StyleDetrong.GroupOptions.Color;
+              3: // style phang
+                TdxLayoutControl(AControl.Components[i]).LookAndFeel.GroupOptions.Color := StylePhang.GroupOptions.Color;
+              4: // style chuan
+                TdxLayoutControl(AControl.Components[i]).LookAndFeel.GroupOptions.Color := StyleStandard.GroupOptions.Color;
+              5: // style mac dinh
+                TdxLayoutControl(AControl.Components[i]).LookAndFeel.GroupOptions.Color := StyleMacDinh.GroupOptions.Color;
+            end;
+          //ApplyUserInterface(Tcontrol(AControl.Components[i]));
+      end
+      else
+        if (AControl.Components[i] is TFrame) then
+            ApplyUserInterface(Tcontrol(AControl.Components[i]))
+        else
+          if (AControl.Components[i].InheritsFrom(TdxInplaceEdit)) then
+          begin
+            if AControl.Components[i].Tag <> -10 then
+            begin
+              TdxInplaceEdit(AControl.Components[i]).Style.AssignedValues :=
+                TdxInplaceEdit(AControl.Components[i]).Style.AssignedValues -
+                [svBorderColor] - [svBorderStyle] - [svButtonStyle];
+            end;
+          end;
+
+      if (AControl.Components[i] is TdxDBGrid) then
+              ChangeGrid(TdxDBGrid(AControl.Components[i]));
+      if (AControl.Components[i] is TdxDBTreeList) then
+        ChangeTree(TdxDBTreeList(AControl.Components[i]));
+      if (AControl.Components[i] is TdxDBInspector) then
+        ChangeInspector(TdxDBInspector(AControl.Components[i]));
+
+      if AControl.Components[i].Name = 'ABCXYZ' then
+      begin
+        // (AControl.Components[i] as TdxLayoutWebLookAndFeel).GroupOptions.CaptionOptions.Color:=StyleWeb.GroupOptions.Color;
+        case GlobalActiveStyle of
+          0: // style co' bong
+            (AControl.Components[i] as
+              TdxLayoutWebLookAndFeel).GroupOptions.CaptionOptions.Color := lfActiveX.GroupOptions.Color;
+          1: // style kieu web
+            (AControl.Components[i] as
+              TdxLayoutWebLookAndFeel).GroupOptions.CaptionOptions.Color := StyleWeb.GroupOptions.Color;
+          2: // style trong
+            (AControl.Components[i] as
+              TdxLayoutWebLookAndFeel).GroupOptions.CaptionOptions.Color := StyleDetrong.GroupOptions.Color;
+          3: // style phang
+            (AControl.Components[i] as
+              TdxLayoutWebLookAndFeel).GroupOptions.CaptionOptions.Color := StylePhang.GroupOptions.Color;
+          4: // style chuan
+            (AControl.Components[i] as
+              TdxLayoutWebLookAndFeel).GroupOptions.CaptionOptions.Color := clBtnFace;
+          5: // style mac dinh
+            (AControl.Components[i] as
+              TdxLayoutWebLookAndFeel).GroupOptions.CaptionOptions.Color := StyleMacDinh.GroupOptions.Color;
+        end;
+      end;
+    end;
+  end;
+end;
+
+procedure ChangeInspector(AInspector: TdxDBInspector);
+begin
+  case GlobalActiveStyle of
+    0, 1, 2, 3, 5: // style co' bong
+      begin
+        AInspector.PaintStyle := ipsNet;
+        AInspector.GridColor := InterfaceDM.edtStyleController.BorderColor;
+        AInspector.BorderStyle := bsNone;
+        if GlobalActiveStyle in [0, 5] then
+          AInspector.Color := InterfaceDM.lfActiveX.GroupOptions.Color;
+        if GlobalActiveStyle = 1 then
+          AInspector.Color := InterfaceDM.StyleWeb.GroupOptions.Color;
+        if GlobalActiveStyle = 2 then
+          AInspector.Color := InterfaceDM.StyleDetrong.GroupOptions.Color;
+        if GlobalActiveStyle = 3 then
+          AInspector.Color := InterfaceDM.StylePhang.GroupOptions.Color;
+      end;
+    4: // style chuan
+      AInspector.PaintStyle := ipsCategorized;
+  end;
+end;
+
+procedure ChangeTree(ATree: TdxDBTreeList);
+begin
+  case GlobalActiveStyle of
+    0, 5: // style co' bong
+      begin
+        ATree.HeaderColor := $00C8DFE6;
+        ATree.HighlightColor := $00D9E2D3;
+        ATree.HideSelectionColor := $00D9E2D3;
+        ATree.HighlightTextColor := clBlack;
+        ATree.HideSelectionTextColor := clBlack;
+      end;
+    1: // style kieu web
+      begin
+        ATree.HeaderColor := $00F0E3CE;
+        ATree.HighlightColor := $00D9E2D3;
+        ATree.HideSelectionColor := $00D9E2D3;
+        ATree.HighlightTextColor := clBlack;
+        ATree.HideSelectionTextColor := clBlack;
+      end;
+    2: // style trong
+      begin
+        ATree.HeaderColor :=  $00DFDFDF;//$00C2D7EB;// $00C7CAB7;
+        ATree.HighlightColor := $00D9E2D3;
+        ATree.HideSelectionColor := $00D9E2D3;
+        ATree.HighlightTextColor := clBlack;
+        ATree.HideSelectionTextColor := clBlack;
+      end;
+    4: // style chuan
+      begin
+        ATree.HeaderColor := clBtnFace;
+        ATree.HighlightColor := clHighlight;
+        ATree.HideSelectionColor := clHighlight;
+        ATree.HighlightTextColor := clHighlightText;
+        ATree.HideSelectionTextColor := clHighlightText;
+      end;
+    3: // Style phang mau xanh
+      begin
+        ATree.HeaderColor := $00D6E4DD;//$00B0C69D;//$00D9E2D3;
+        ATree.HighlightColor := clCream;
+        ATree.HideSelectionColor := clCream;
+        ATree.HighlightTextColor := clBlack;
+        ATree.HideSelectionTextColor := clBlack;
+      end;
+  end;
+end;
+
+procedure ChangeGrid(AGrid: TdxDBGrid);
+begin
+  case GlobalActiveStyle of
+    0, 5: // style co' bong
+      begin
+        AGrid.HeaderColor := $00C8DFE6;
+        AGrid.GroupPanelColor := $00BDD0DD;
+        AGrid.GroupPanelFontColor := clBlack;
+        AGrid.HighlightColor := $00D9E2D3;
+        AGrid.HideSelectionColor := $00D9E2D3;
+        AGrid.HighlightTextColor := clBlack;
+        AGrid.HideSelectionTextColor := clBlack;
+        //AGrid.GroupNodeColor := cl3dlight;//$00F2F2F0; // Thinh them 2007/01
+      end;
+    1: // style kieu web
+      begin
+        AGrid.GroupPanelColor := $00D1C9AD;
+        AGrid.GroupPanelFontColor := clBlack;
+        AGrid.HeaderColor := $00F0E3CE;
+        AGrid.HighlightColor := $00D9E2D3;
+        AGrid.HideSelectionColor := $00D9E2D3;
+        AGrid.HighlightTextColor := clBlack;
+        AGrid.HideSelectionTextColor := clBlack;
+        //AGrid.GroupNodeColor := cl3dlight;//$00F2F2F0; //Thinh them 2007/01
+      end;
+    2: // style trong
+      begin
+        AGrid.HeaderColor := $00DFDFDF; //$00C2D7EB;
+        AGrid.GroupPanelFontColor := clBlack;
+        AGrid.GroupPanelColor := $00BDD0DD;
+        AGrid.HighlightColor := $00D9E2D3;
+        AGrid.HideSelectionColor := $00D9E2D3;
+        AGrid.HighlightTextColor := clBlack;
+        AGrid.HideSelectionTextColor := clBlack;
+        //AGrid.GroupNodeColor := cl3dlight;//$00F2F2F0; //Thinh them 2007/01
+      end;
+    4: // style chuan
+      begin
+        AGrid.HeaderColor := clBtnFace;
+        AGrid.GroupPanelColor := clBtnShadow;
+        AGrid.GroupPanelFontColor := clBtnFace;
+        AGrid.HighlightColor := clHighlight;
+        AGrid.HideSelectionColor := clHighlight;
+        AGrid.HighlightTextColor := clHighlightText;
+        AGrid.HideSelectionTextColor := clHighlightText;
+        //AGrid.GroupNodeColor :=clBtnFace; //Thinh them 2007/01
+      end;
+    3: // mau xanh
+      begin
+        AGrid.GroupPanelColor := $00BDCEB3;
+        AGrid.GroupPanelFontColor := clBlack;
+        AGrid.HeaderColor := $00D6E4DD;//$00D9E2D3;
+        AGrid.HighlightColor := clCream;
+        AGrid.HideSelectionColor := clCream;
+        AGrid.HighlightTextColor := clBlack;
+        AGrid.HideSelectionTextColor := clBlack;
+        //AGrid.GroupNodeColor := cl3dlight;//$00F2F2F0; //Thinh them 2007/01
+      end;
+  end;
+end;
+
+function ReadRegistry: Boolean;
+var
+  reg: TRegistry;
+  Bool: Boolean;
+begin
+  ReadRegistry := False;
+  Reg := TRegistry.Create;
+  ColorBB := TColor(16773368);
+  ColorReadOnly := TColor(15990525);
+  try
+    reg.RootKey := HKEY_CURRENT_USER;
+    if reg.OpenKey('SoftWare\SSP\Interface', FALSE) then
+    begin
+      with InterfaceDM do
+      begin
+        edtStyleController.BorderColor := TColor(Reg.ReadInteger('BorderColor'));
+        edtStyleController.BorderStyle := TdxeditBorderStyle(Reg.ReadInteger('BorderStyle'));
+        edtStyleController.ButtonStyle := TdxEditButtonViewStyle(Reg.ReadInteger('ButtonStyle'));
+        edtStyleController.ButtonTransparence := TdxEditButtonTransparence(Reg.ReadInteger('ButtonTransparence'));
+        Bool := reg.ReadBool('EdgesLeft');
+        if Bool then
+          edtStyleController.Edges := edtStyleController.Edges + [edgLeft]
+        else
+          edtStyleController.Edges := edtStyleController.Edges - [edgLeft];
+        Bool := reg.ReadBool('EdgesRight');
+        if Bool then
+          edtStyleController.Edges := edtStyleController.Edges + [edgRight]
+        else
+          edtStyleController.Edges := edtStyleController.Edges - [edgRight];
+        Bool := reg.ReadBool('EdgesBottom');
+        if Bool then
+          edtStyleController.Edges := edtStyleController.Edges + [edgBottom]
+        else
+          edtStyleController.Edges := edtStyleController.Edges - [edgBottom];
+        edtStyleController.HotTrack := reg.ReadBool('HotTrack');
+        edtStyleController.Shadow := reg.ReadBool('Shadow');
+      end;
+      GlobalActiveStyle := reg.ReadInteger('PosActiveStyle');
+        //luu lai style nao dau tien
+      Result := TRUE;
+      lang := reg.ReadInteger('language');
+
+      ColorBB := TColor(Reg.ReadInteger('BatBuocColor'));
+      ColorReadOnly := TColor(Reg.ReadInteger('ReadOnlyColor'));
+    end
+    else
+      Result := FALSE;
+  except
+    reg.Free;
+  end;
+end;
+
+end.
+
